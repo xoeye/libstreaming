@@ -13,3 +13,5 @@ local.properties
 custom_rules.xml
 ant.properties
 *~
+*.iml
+/.idea/
