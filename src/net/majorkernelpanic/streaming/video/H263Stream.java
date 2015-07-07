@@ -22,6 +22,7 @@ package net.majorkernelpanic.streaming.video;
 
 import java.io.IOException;
 
+import android.hardware.Camera;
 import net.majorkernelpanic.streaming.SessionBuilder;
 import net.majorkernelpanic.streaming.rtp.H263Packetizer;
 import android.graphics.ImageFormat;
@@ -54,6 +55,19 @@ public class H263Stream extends VideoStream {
 	 */	
 	public H263Stream(int cameraId) {
 		super(cameraId);
+		mCameraImageFormat = ImageFormat.NV21;
+		mVideoEncoder = MediaRecorder.VideoEncoder.H263;
+		mPacketizer = new H263Packetizer();
+	}
+
+	/**
+	 * Constructs the H.263 stream.
+	 * @param cameraId Can be either CameraInfo.CAMERA_FACING_BACK or CameraInfo.CAMERA_FACING_FRONT
+	 * @throws IOException
+	 */
+	public H263Stream(Camera camera, int cameraId) {
+		super(cameraId);
+        mCamera = camera;
 		mCameraImageFormat = ImageFormat.NV21;
 		mVideoEncoder = MediaRecorder.VideoEncoder.H263;
 		mPacketizer = new H263Packetizer();

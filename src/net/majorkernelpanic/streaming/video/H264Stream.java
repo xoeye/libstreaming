@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
+import android.hardware.Camera;
 import net.majorkernelpanic.streaming.SessionBuilder;
 import net.majorkernelpanic.streaming.exceptions.ConfNotSupportedException;
 import net.majorkernelpanic.streaming.exceptions.StorageUnavailableException;
@@ -75,6 +76,15 @@ public class H264Stream extends VideoStream {
 		mVideoEncoder = MediaRecorder.VideoEncoder.H264;
 		mPacketizer = new H264Packetizer();
 	}
+
+    public H264Stream(Camera camera, int cameraId) {
+        super(cameraId);
+        mCamera = camera;
+        mMimeType = "video/avc";
+        mCameraImageFormat = ImageFormat.NV21;
+        mVideoEncoder = MediaRecorder.VideoEncoder.H264;
+        mPacketizer = new H264Packetizer();
+    }
 
 	/**
 	 * Returns a description of the stream using SDP. It can then be included in an SDP file.

@@ -23,6 +23,7 @@ package net.majorkernelpanic.streaming;
 import java.io.IOException;
 import java.net.InetAddress;
 
+import android.hardware.Camera;
 import net.majorkernelpanic.streaming.audio.AACStream;
 import net.majorkernelpanic.streaming.audio.AMRNBStream;
 import net.majorkernelpanic.streaming.audio.AudioQuality;
@@ -68,6 +69,7 @@ public class SessionBuilder {
 	private int mVideoEncoder = VIDEO_H263; 
 	private int mAudioEncoder = AUDIO_AMRNB;
 	private int mCamera = CameraInfo.CAMERA_FACING_BACK;
+    private Camera mCameraInstance;
 	private int mTimeToLive = 64;
 	private int mOrientation = 0;
 	private boolean mFlash = false;
@@ -123,12 +125,23 @@ public class SessionBuilder {
 			break;
 		}
 
+        VideoStream stream;
 		switch (mVideoEncoder) {
 		case VIDEO_H263:
-			session.addVideoTrack(new H263Stream(mCamera));
+            if (mCameraInstance != null) {
+                stream = new H263Stream(mCameraInstance, mCamera);
+            } else {
+                stream = new H263Stream(mCamera);
+            }
+			session.addVideoTrack(stream);
 			break;
 		case VIDEO_H264:
-			H264Stream stream = new H264Stream(mCamera);
+            if (mCameraInstance != null) {
+                stream = new H264Stream(mCameraInstance, mCamera);
+            } else {
+                stream = new H264Stream(mCamera);
+            }
+
 			if (mContext!=null) 
 				stream.setPreferences(PreferenceManager.getDefaultSharedPreferences(mContext));
 			session.addVideoTrack(stream);
@@ -208,6 +221,12 @@ public class SessionBuilder {
 		mCamera = camera;
 		return this;
 	}
+
+    public SessionBuilder setCamera(Camera camera, int cameraId) {
+        mCameraInstance = camera;
+        mCamera = cameraId;
+        return this;
+    }
 
 	public SessionBuilder setTimeToLive(int ttl) {
 		mTimeToLive = ttl;
@@ -302,7 +321,7 @@ public class SessionBuilder {
 		.setVideoQuality(mVideoQuality)
 		.setVideoEncoder(mVideoEncoder)
 		.setFlashEnabled(mFlash)
-		.setCamera(mCamera)
+        .setCamera(mCameraInstance, mCamera)
 		.setTimeToLive(mTimeToLive)
 		.setAudioEncoder(mAudioEncoder)
 		.setAudioQuality(mAudioQuality)
