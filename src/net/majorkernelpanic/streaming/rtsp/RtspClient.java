@@ -225,7 +225,7 @@ public class RtspClient {
 	 */
 	public void startStream() {
 		if (mTmpParameters.host == null) throw new IllegalStateException("setServerAddress(String,int) has not been called !");
-		if (mTmpParameters.session == null) throw new IllegalStateException("setSession() has not been called !");
+		//if (mTmpParameters.session == null) throw new IllegalStateException("setSession() has not been called !");
 		mHandler.post(new Runnable () {
 			@Override
 			public void run() {
@@ -236,6 +236,7 @@ public class RtspClient {
 				
 				// If the user calls some methods to configure the client, it won't modify its behavior until the stream is restarted
 				mParameters = mTmpParameters.clone();
+/*
 				mParameters.session.setDestination(mTmpParameters.host);
 				
 				try {
@@ -245,6 +246,7 @@ public class RtspClient {
 					mState = STATE_STOPPED;
 					return;
 				}				
+*/
 				
 				try {
 					tryConnection();
@@ -254,6 +256,7 @@ public class RtspClient {
 					return;
 				}
 				
+/*
 				try {
 					mParameters.session.syncStart();
 					mState = STATE_STARTED;
@@ -263,6 +266,7 @@ public class RtspClient {
 				} catch (Exception e) {
 					abort();
 				}
+*/
 
 			}
 		});
@@ -276,9 +280,11 @@ public class RtspClient {
 		mHandler.post(new Runnable () {
 			@Override
 			public void run() {
+/*
 				if (mParameters != null && mParameters.session != null) {
 					mParameters.session.stop();
 				}
+*/
 				if (mState != STATE_STOPPED) {
 					mState = STATE_STOPPING;
 					abort();
@@ -309,9 +315,10 @@ public class RtspClient {
 		mSocket = new Socket(mParameters.host, mParameters.port);
 		mBufferedReader = new BufferedReader(new InputStreamReader(mSocket.getInputStream()));
 		mOutputStream = new BufferedOutputStream(mSocket.getOutputStream());
-		sendRequestAnnounce();
+		//sendRequestAnnounce();
 		sendRequestSetup();
-		sendRequestRecord();
+		//sendRequestRecord();
+		sendRequestPlay();
 	}
 	
 	/**
@@ -392,12 +399,12 @@ public class RtspClient {
 	 * Forges and sends the SETUP request 
 	 */
 	private void sendRequestSetup() throws IllegalStateException, SocketException, IOException {
-		for (int i=0;i<2;i++) {
-			Stream stream = mParameters.session.getTrack(i);
-			if (stream != null) {
+		for (int i=1;i<2;i++) {
+//			Stream stream = mParameters.session.getTrack(i);
+//			if (stream != null) {
 				String params = mParameters.transport==TRANSPORT_TCP ? 
-						("TCP;interleaved="+2*i+"-"+(2*i+1)) : ("UDP;unicast;client_port="+(5000+2*i)+"-"+(5000+2*i+1)+";mode=receive");
-				String request = "SETUP rtsp://"+mParameters.host+":"+mParameters.port+mParameters.path+"/trackID="+i+" RTSP/1.0\r\n" +
+						("TCP;interleaved="+2*i+"-"+(2*i+1)) : ("UDP;unicast;client_port=8002-8003;mode=receive");
+				String request = "SETUP rtsp://"+mParameters.host+":"+mParameters.port+mParameters.path+"/track"+i+" RTSP/1.0\r\n" +
 						"Transport: RTP/AVP/"+params+"\r\n" +
 						addHeaders();
 
@@ -406,22 +413,40 @@ public class RtspClient {
 				mOutputStream.write(request.getBytes("UTF-8"));
 				mOutputStream.flush();
 				Response response = Response.parseResponse(mBufferedReader);
+
+				Log.d(TAG, "RTSP Response: " + response);
+/*
 				Matcher m;
 				if (mParameters.transport == TRANSPORT_UDP) {
 					try {
 						m = Response.rexegTransport.matcher(response.headers.get("transport")); m.find();
-						stream.setDestinationPorts(Integer.parseInt(m.group(3)), Integer.parseInt(m.group(4)));
+						//stream.setDestinationPorts(Integer.parseInt(m.group(3)), Integer.parseInt(m.group(4)));
 						Log.d(TAG, "Setting destination ports: "+Integer.parseInt(m.group(3))+", "+Integer.parseInt(m.group(4)));
 					} catch (Exception e) {
 						e.printStackTrace();
-						int[] ports = stream.getDestinationPorts();
-						Log.d(TAG,"Server did not specify ports, using default ports: "+ports[0]+"-"+ports[1]);
+						//int[] ports = stream.getDestinationPorts();
+						//Log.d(TAG,"Server did not specify ports, using default ports: "+ports[0]+"-"+ports[1]);
 					}
 				} else {
-					stream.setOutputStream(mOutputStream, (byte)(2*i));
+					//stream.setOutputStream(mOutputStream, (byte)(2*i));
 				}
-			}
+*/
+//			}
 		}
+	}
+
+	/**
+	 * Forges and sends the PLAY request 
+	 */
+	private void sendRequestPlay() throws IllegalStateException, SocketException, IOException {
+                String request = "PLAY rtsp://"+mParameters.host+":"+mParameters.port+mParameters.path+" RTSP/1.0\r\n" +
+                                addHeaders();
+
+                Log.i(TAG,request.substring(0, request.indexOf("\r\n")));
+
+                mOutputStream.write(request.getBytes("UTF-8"));
+                mOutputStream.flush();
+                Response response = Response.parseResponse(mBufferedReader);
 	}
 
 	/**
@@ -461,7 +486,7 @@ public class RtspClient {
 	private String addHeaders() {
 		return "CSeq: " + (++mCSeq) + "\r\n" +
 				"Content-Length: 0\r\n" +
-				"Session: " + mSessionID + "\r\n" +
+				"Session: " + mSessionID + ";timeout=1080000\r\n" +
 				// For some reason you may have to remove last "\r\n" in the next line to make the RTSP client work with your wowza server :/
 				(mAuthorization != null ? "Authorization: " + mAuthorization + "\r\n":"") + "\r\n";
 	}
@@ -570,7 +595,6 @@ public class RtspClient {
 		// Parses a Transport header
 		public static final Pattern rexegTransport = Pattern.compile("client_port=(\\d+)-(\\d+).+server_port=(\\d+)-(\\d+)",Pattern.CASE_INSENSITIVE);
 
-
 		public int status;
 		public HashMap<String,String> headers = new HashMap<String,String>();
 
@@ -587,7 +611,7 @@ public class RtspClient {
 
 			// Parsing headers of the request
 			while ( (line = input.readLine()) != null) {
-				//Log.e(TAG,"l: "+line.length()+", c: "+line);
+				Log.e(TAG,"l: "+line.length()+", c: "+line);
 				if (line.length()>3) {
 					matcher = rexegHeader.matcher(line);
 					matcher.find();
